@@ -3,6 +3,7 @@ from flask_smorest import Api
 from flask_migrate import Migrate
 
 from db import db
+from resources.user import blp as UserBlueprint
 
 def create_app(db_url=None):
     app = Flask(__name__)
@@ -21,11 +22,10 @@ def create_app(db_url=None):
     migrate = Migrate(app, db)
     api = Api(app)
 
-    @app.get("/")
-    def test_route():
-        return "Hello, World!"
-
     with app.app_context():
+        import models
         db.create_all()
+
+    api.register_blueprint(UserBlueprint)
 
     return app
