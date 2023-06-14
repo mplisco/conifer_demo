@@ -1,5 +1,7 @@
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
+from sqlalchemy.exc import IntegrityError
+from db import db
 
 from models import UserModel
 from schemas import UserSchema, UserLoginSchema, UserUpdateSchema
@@ -74,16 +76,21 @@ class User(MethodView):
         return {"message": "User deleted."}, 200
 
     @blp.arguments(UserUpdateSchema)
+    @blp.response(200, UserSchema)
     def patch(self, user_data, user_id):
         user = UserModel.find_by_id(user_id)
         if not user:
             abort(404, message="User not found.")
 
-        user.first_name = user_data["first_name"]
-        user.last_name = user_data["last_name"]
-        user.username = user_data["username"]
-        user.email = user_data["email"]
-        user.password = user_data["password"]
+        user.first_name = user_data.get('first_name', user.first_name)
+        user.last_name = user_data.get('last_name', user.last_name)
+        user.username = user_data.get('username', user.username)
+        user.email = user_data.get('email', user.email)
+        user.password = user_data.get('password', user.password)
 
-        user.save_to_db()
-        return {"message": "User updated successfully."}, 200
+        try:
+            user.save_to_db()
+        except IntegrityError:
+            db.session.rollback()
+            abort(400, message="A user with that username or email already exists.")
+        return user, 200
